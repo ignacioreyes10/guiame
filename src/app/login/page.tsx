@@ -43,7 +43,7 @@ export default function LoginPage() {
               Usuario
             </label>
             <input
-              type="email"
+              type="text"
               required
               autoComplete="username"
               value={email}
