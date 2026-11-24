@@ -100,18 +100,21 @@ personal.
 ### Datos de demo
 
 `npx convex run seed:seedDemoData` crea una tutora, 4 estudiantes, una clase
-("Aula 3") con sus matrículas y el catálogo de 6 emociones, para poder
-revisar el panel sin dar de alta cuentas a mano. Cada preview de Vercel la
-ejecuta sola (`--preview-run` en `vercel.json`), porque nace con su propio
-deployment de Convex vacío.
+("Aula 3") con sus matrículas, el catálogo de 6 emociones y 4 actividades
+con pictograma, pasos y una realización de ejemplo por estudiante para hoy
+(una completada, una en curso, el resto pendientes). Así se puede revisar
+el panel y la vista del estudiante sin dar de alta nada a mano. Cada
+preview de Vercel la ejecuta sola (`--preview-run` en `vercel.json`),
+porque nace con su propio deployment de Convex vacío.
 
 | Cuenta | Usuario | Contraseña |
 | --- | --- | --- |
 | Tutora | `marta.ruiz@centro-demo.es` | `Demo1234!` |
 | Estudiantes | `lucia`, `pablo`, `ana`, `javier` | `Demo1234!` |
 
-Actividades, pasos y estados emocionales de ejemplo quedan para cuando esté
-el contenido de GM-14.
+Las actividades y los estados emocionales son contenido de ejemplo
+provisional; se sustituyen cuando llegue el contenido real de Ignacio sin
+tocar la estructura del seed.
 
 ## Despliegue
 
