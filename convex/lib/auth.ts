@@ -91,3 +91,20 @@ export async function requireVeAlEstudianteOrAdmin(
 
   throw new Error("No autorizado: no supervisas a este alumno");
 }
+
+// La agenda de un estudiante la puede consultar el propio estudiante (RF1.1,
+// RF1.2) o un tutor/administrador autorizado a verlo (RF1.2, RF6.2/RF6.3).
+export async function requireVerAgendaEstudiante(
+  ctx: QueryCtx | MutationCtx,
+  estudianteId: Id<"estudiantes">,
+): Promise<void> {
+  const current = await getCurrentUser(ctx);
+  if (current !== null && current.kind === "estudiante") {
+    if (current.estudiante._id !== estudianteId) {
+      throw new Error("No autorizado: solo puedes ver tu propia agenda");
+    }
+    return;
+  }
+
+  await requireVeAlEstudianteOrAdmin(ctx, estudianteId);
+}
