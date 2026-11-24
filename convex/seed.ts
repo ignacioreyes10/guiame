@@ -11,10 +11,9 @@ import type { Id } from "./_generated/dataModel";
 // una tutora, una clase y varios estudiantes con los que poder iniciar
 // sesión para revisar el panel.
 //
-// Pendiente (GM-14): actividades, pasos y estados emocionales de ejemplo se
-// añaden aparte cuando esté el contenido real; esta función ya deja creadas
-// las cuentas, la clase y la configuración visual por defecto de cada
-// estudiante para que eso se pueda enchufar sin tocar lo de aquí.
+// Las 4 actividades con pictograma de abajo son contenido de ejemplo
+// provisional (HT5); cuando llegue el contenido real de Ignacio se
+// sustituyen sin tocar la estructura del seed.
 
 const ANIO_CURSO = "2026-2027";
 
@@ -41,6 +40,49 @@ const EMOCIONES = [
   "sorprendido",
   "asustado",
   "tranquilo",
+];
+
+// 4 actividades con pictograma (B4), una por estudiante de ejemplo. Los
+// pictogramas son placeholders hasta tener los ARASAAC reales.
+const ACTIVIDADES = [
+  {
+    titulo: "Desayunar",
+    descripcion: "Desayuno en el comedor antes de empezar las clases.",
+    tipoActividad: "familiar" as const,
+    duracion: 20,
+    pictograma: "desayuno",
+    pasos: [
+      { texto: "Lavarse las manos", pictograma: "lavarse_manos" },
+      { texto: "Comer el desayuno", pictograma: "comer" },
+    ],
+  },
+  {
+    titulo: "Lavarse los dientes",
+    descripcion: "Higiene dental después del desayuno.",
+    tipoActividad: "familiar" as const,
+    duracion: 5,
+    pictograma: "cepillo_dientes",
+    pasos: [{ texto: "Cepillarse los dientes", pictograma: "cepillo_dientes" }],
+  },
+  {
+    titulo: "Tarea de matemáticas",
+    descripcion: "Ejercicios de sumas con apoyo visual.",
+    tipoActividad: "academica" as const,
+    duracion: 30,
+    pictograma: "matematicas",
+    pasos: [
+      { texto: "Coger el cuaderno y el lápiz", pictograma: "cuaderno" },
+      { texto: "Hacer los ejercicios", pictograma: "matematicas" },
+    ],
+  },
+  {
+    titulo: "Salir al recreo",
+    descripcion: "Tiempo libre en el patio.",
+    tipoActividad: "academica" as const,
+    duracion: 15,
+    pictograma: "recreo",
+    pasos: [{ texto: "Salir al patio", pictograma: "recreo" }],
+  },
 ];
 
 export const seedDemoData = internalAction({
@@ -149,6 +191,61 @@ export const insertClaseYRelaciones = internalMutation({
         nombre: EMOCIONES[i],
         orden: i,
         imagenId,
+      });
+    }
+
+    const actividadIds: Id<"actividades">[] = [];
+    for (const actividad of ACTIVIDADES) {
+      const imagenId = await ctx.db.insert("imagenes", {
+        ubicacionArchivo: `/placeholder/actividades/${actividad.pictograma}.svg`,
+        textoAlternativo: actividad.pictograma,
+      });
+      const actividadId = await ctx.db.insert("actividades", {
+        titulo: actividad.titulo,
+        descripcion: actividad.descripcion,
+        tipoActividad: actividad.tipoActividad,
+        duracion: actividad.duracion,
+        imagenId,
+        creadoPor: args.tutorUserId,
+        cancelada: false,
+      });
+      for (let i = 0; i < actividad.pasos.length; i++) {
+        const pasoImagenId = await ctx.db.insert("imagenes", {
+          ubicacionArchivo: `/placeholder/actividades/${actividad.pasos[i].pictograma}.svg`,
+          textoAlternativo: actividad.pasos[i].pictograma,
+        });
+        await ctx.db.insert("pasos", {
+          actividadId,
+          orden: i,
+          texto: actividad.pasos[i].texto,
+          tipoMedio: "pictograma",
+          imagenId: pasoImagenId,
+        });
+      }
+      actividadIds.push(actividadId);
+    }
+
+    // Una realización por estudiante hoy, con una mezcla de estados: la
+    // primera ya completada, la segunda en curso, el resto pendientes.
+    const MINUTO = 60 * 1000;
+    const ahora = Date.now();
+    const n = Math.min(args.estudianteIds.length, actividadIds.length);
+    for (let i = 0; i < n; i++) {
+      const duracion = ACTIVIDADES[i].duracion;
+      const inicioProgramado = ahora + (i - 1) * 90 * MINUTO;
+      const finProgramado = inicioProgramado + duracion * MINUTO;
+      const completada = i === 0;
+      const enCurso = i === 1;
+      await ctx.db.insert("realizaciones", {
+        estudianteId: args.estudianteIds[i],
+        actividadId: actividadIds[i],
+        asignadoPor: tutorId,
+        fInicioProgramada: inicioProgramado,
+        fFinProgramada: finProgramado,
+        hInicioReal: completada || enCurso ? inicioProgramado : undefined,
+        hFinReal: completada ? finProgramado : undefined,
+        duracionEstudiante: completada ? duracion : undefined,
+        cancelada: false,
       });
     }
 
