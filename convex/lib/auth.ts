@@ -71,7 +71,7 @@ export async function requireVeAlEstudianteOrAdmin(
   const vinculosDirectos = await ctx.db
     .query("vinculosDirectos")
     .withIndex("by_tutor", (q) => q.eq("tutorId", current.tutor._id))
-    .take(50);
+    .collect();
   if (vinculosDirectos.some((v) => v.estudianteId === estudianteId)) {
     return current.tutor;
   }
@@ -79,11 +79,11 @@ export async function requireVeAlEstudianteOrAdmin(
   const matriculas = await ctx.db
     .query("matriculas")
     .withIndex("by_estudiante", (q) => q.eq("estudianteId", estudianteId))
-    .take(50);
+    .collect();
   const supervisiones = await ctx.db
     .query("supervisiones")
     .withIndex("by_tutor", (q) => q.eq("tutorId", current.tutor._id))
-    .take(50);
+    .collect();
   const clasesSupervisadas = new Set(supervisiones.map((s) => s.claseId));
   if (matriculas.some((m) => clasesSupervisadas.has(m.claseId))) {
     return current.tutor;
