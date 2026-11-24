@@ -97,6 +97,22 @@ npx convex run accounts:createTutor \
 Añadir `--prod` apunta a producción en vez de a tu deployment de desarrollo
 personal.
 
+### Datos de demo
+
+`npx convex run seed:seedDemoData` crea una tutora, 4 estudiantes, una clase
+("Aula 3") con sus matrículas y el catálogo de 6 emociones, para poder
+revisar el panel sin dar de alta cuentas a mano. Cada preview de Vercel la
+ejecuta sola (`--preview-run` en `vercel.json`), porque nace con su propio
+deployment de Convex vacío.
+
+| Cuenta | Usuario | Contraseña |
+| --- | --- | --- |
+| Tutora | `marta.ruiz@centro-demo.es` | `Demo1234!` |
+| Estudiantes | `lucia`, `pablo`, `ana`, `javier` | `Demo1234!` |
+
+Actividades, pasos y estados emocionales de ejemplo quedan para cuando esté
+el contenido de GM-14.
+
 ## Despliegue
 
 - **Vercel**: cada push a `main` dispara un build de producción. El comando
