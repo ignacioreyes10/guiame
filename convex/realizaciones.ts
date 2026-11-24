@@ -1,15 +1,61 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
+  requireSelfEstudiante,
   requireTutorOrAdmin,
   requireVeAlEstudianteOrAdmin,
   requireVerAgendaEstudiante,
 } from "./lib/auth";
 
-// RF2.5: asignar una actividad a uno o varios estudiantes, cada uno con su
-// propio horario previsto y, si hace falta, una duración distinta de la
-// común. No valida solapamientos (RF2.6): eso es de otro hito (HT6).
+// Realizaciones (no canceladas, de actividades no canceladas) que ya tiene
+// un estudiante, para comprobar solapamientos de horario (RF2.6). Se usa el
+// índice by_estudiante_and_inicio para no barrer la tabla entera; el
+// conjunto resultante está acotado por estudiante, igual que listarAgenda.
+async function cargarHorarioActivoDelEstudiante(
+  ctx: MutationCtx,
+  estudianteId: Id<"estudiantes">,
+): Promise<Array<{ fInicioProgramada: number; fFinProgramada: number; titulo: string }>> {
+  const realizaciones = await ctx.db
+    .query("realizaciones")
+    .withIndex("by_estudiante_and_inicio", (q) => q.eq("estudianteId", estudianteId))
+    .collect();
+
+  const horario: Array<{
+    fInicioProgramada: number;
+    fFinProgramada: number;
+    titulo: string;
+  }> = [];
+  for (const realizacion of realizaciones) {
+    if (realizacion.cancelada) continue;
+    const actividad = await ctx.db.get("actividades", realizacion.actividadId);
+    if (actividad === null || actividad.cancelada) continue;
+    horario.push({
+      fInicioProgramada: realizacion.fInicioProgramada,
+      fFinProgramada: realizacion.fFinProgramada,
+      titulo: actividad.titulo,
+    });
+  }
+  return horario;
+}
+
+function seSolapan(
+  a: { fInicioProgramada: number; fFinProgramada: number },
+  b: { fInicioProgramada: number; fFinProgramada: number },
+): boolean {
+  // Intervalo semiabierto [inicio, fin): solapamiento total o parcial.
+  return a.fInicioProgramada < b.fFinProgramada && a.fFinProgramada > b.fInicioProgramada;
+}
+
+// RF2.5 / RF2.6 (GM-07): asignar una actividad a uno o varios estudiantes,
+// cada uno con su propio horario previsto y, si hace falta, una duración
+// distinta de la común. Antes de confirmar nada se comprueba que ningún
+// horario nuevo se solapa, total o parcialmente, con otra actividad ya en
+// la agenda de ese estudiante (ni con otro horario nuevo de la misma
+// llamada para el mismo estudiante). Si hay conflicto para cualquier
+// estudiante se rechaza toda la operación (nada se inserta) para que el
+// tutor pueda corregir el horario y volver a intentarlo.
 export const asignar = mutation({
   args: {
     actividadId: v.id("actividades"),
@@ -41,7 +87,9 @@ export const asignar = mutation({
     }
 
     const ahora = Date.now();
-    const ids: Array<Id<"realizaciones">> = [];
+
+    // Paso 1: validar cada asignación y comprobar que el tutor puede ver a
+    // cada estudiante, antes de tocar nada de solapamientos.
     for (const asignacion of args.asignaciones) {
       if (
         !Number.isFinite(asignacion.fInicioProgramada) ||
@@ -68,7 +116,44 @@ export const asignar = mutation({
       }
 
       await requireVeAlEstudianteOrAdmin(ctx, asignacion.estudianteId);
+    }
 
+    // Paso 2 (RF2.6): comprobar solapamientos. Se lee el horario activo de
+    // cada estudiante una sola vez (memorizado en este mapa) y se va
+    // ampliando con cada asignación ya validada de esta misma llamada, para
+    // detectar también dos horarios nuevos que se solapen entre sí.
+    const horarioPorEstudiante = new Map<
+      Id<"estudiantes">,
+      Array<{ fInicioProgramada: number; fFinProgramada: number; titulo: string }>
+    >();
+
+    for (const asignacion of args.asignaciones) {
+      let horario = horarioPorEstudiante.get(asignacion.estudianteId);
+      if (horario === undefined) {
+        horario = await cargarHorarioActivoDelEstudiante(ctx, asignacion.estudianteId);
+        horarioPorEstudiante.set(asignacion.estudianteId, horario);
+      }
+
+      const conflicto = horario.find((existente) => seSolapan(existente, asignacion));
+      if (conflicto !== undefined) {
+        throw new Error(
+          `No se puede asignar: el horario se solapa con "${conflicto.titulo}" en la agenda de este estudiante. Corrige el horario e inténtalo de nuevo.`,
+        );
+      }
+
+      horario.push({
+        fInicioProgramada: asignacion.fInicioProgramada,
+        fFinProgramada: asignacion.fFinProgramada,
+        titulo: actividad.titulo,
+      });
+    }
+
+    // Paso 3: todas las asignaciones son válidas y no hay conflictos; se
+    // insertan todas (si algo fallase aquí, la transacción de Convex
+    // deshace la mutación entera, así que nunca queda una inserción a
+    // medias).
+    const ids: Array<Id<"realizaciones">> = [];
+    for (const asignacion of args.asignaciones) {
       const realizacionId = await ctx.db.insert("realizaciones", {
         estudianteId: asignacion.estudianteId,
         actividadId: args.actividadId,
@@ -258,5 +343,85 @@ export const obtenerDetalle = query({
         archivoId: paso.archivoId,
       })),
     };
+  },
+});
+
+// RF3.1 (GM-08): el propio estudiante marca cuándo empieza una actividad
+// asignada. Es una acción del alumno, no del tutor: nunca se recibe el
+// estudiante como argumento, se deriva de ctx.auth (requireSelfEstudiante).
+export const empezar = mutation({
+  args: { realizacionId: v.id("realizaciones") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const estudiante = await requireSelfEstudiante(ctx);
+
+    const realizacion = await ctx.db.get("realizaciones", args.realizacionId);
+    if (realizacion === null) {
+      throw new Error("La realización no existe");
+    }
+    if (realizacion.estudianteId !== estudiante._id) {
+      throw new Error(
+        "No autorizado: esta actividad no está asignada a tu cuenta",
+      );
+    }
+    if (realizacion.cancelada) {
+      throw new Error("No se puede empezar una actividad cancelada");
+    }
+    const actividad = await ctx.db.get("actividades", realizacion.actividadId);
+    if (actividad === null || actividad.cancelada) {
+      throw new Error("No se puede empezar una actividad cancelada");
+    }
+    if (realizacion.hInicioReal !== undefined) {
+      throw new Error("Esta actividad ya se había empezado");
+    }
+
+    await ctx.db.patch("realizaciones", args.realizacionId, {
+      hInicioReal: Date.now(),
+    });
+    return null;
+  },
+});
+
+// RF3.2 (GM-08): el propio estudiante marca cuándo termina una actividad
+// que ya había empezado. Calcula duracionEstudiante (minutos realmente
+// empleados), distinta de la duración nominal de la actividad.
+export const terminar = mutation({
+  args: { realizacionId: v.id("realizaciones") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const estudiante = await requireSelfEstudiante(ctx);
+
+    const realizacion = await ctx.db.get("realizaciones", args.realizacionId);
+    if (realizacion === null) {
+      throw new Error("La realización no existe");
+    }
+    if (realizacion.estudianteId !== estudiante._id) {
+      throw new Error(
+        "No autorizado: esta actividad no está asignada a tu cuenta",
+      );
+    }
+    if (realizacion.cancelada) {
+      throw new Error("No se puede terminar una actividad cancelada");
+    }
+    const actividad = await ctx.db.get("actividades", realizacion.actividadId);
+    if (actividad === null || actividad.cancelada) {
+      throw new Error("No se puede terminar una actividad cancelada");
+    }
+    if (realizacion.hInicioReal === undefined) {
+      throw new Error("No puedes terminar una actividad que no has empezado");
+    }
+    if (realizacion.hFinReal !== undefined) {
+      throw new Error("Esta actividad ya se había terminado");
+    }
+
+    const hFinReal = Date.now();
+    const duracionEstudiante = Math.round(
+      (hFinReal - realizacion.hInicioReal) / 60000,
+    );
+    await ctx.db.patch("realizaciones", args.realizacionId, {
+      hFinReal,
+      duracionEstudiante,
+    });
+    return null;
   },
 });
