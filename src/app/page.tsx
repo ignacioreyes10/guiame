@@ -7,6 +7,12 @@ import SignOutButton from "@/components/SignOutButton";
 export default async function HomePage() {
   const token = await convexAuthNextjsToken();
   if (!token) {
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.GUIAME_HOY_PREVIEW === "true"
+    ) {
+      redirect("/hoy");
+    }
     redirect("/login");
   }
 
