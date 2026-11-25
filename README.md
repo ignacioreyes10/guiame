@@ -4,19 +4,19 @@ Agenda digital accesible y personalizable para el alumnado del CEE Fundación
 Purísima Concepción (Granada). Proyecto de la asignatura Dirección y Gestión
 de Proyectos, Universidad de Granada, curso 2026-2027.
 
-La documentación completa (Propuesta Técnica, Manual de Coordinación) está en
-`trabajo/segunda-entrega/`.
-
 ## Estado actual
 
-Este repositorio corresponde a la **Iteración 1** del proyecto: base técnica
-y autenticación funcionando (RF6.1, RF6.4), y el modelo de datos completo
-(RI1-RI3). Las funcionalidades del producto (agenda, actividades, estado
-emocional, personalización) se desarrollan en las iteraciones 2 y 3.
+La rama principal contiene el acceso con Convex Auth y el esquema actualizado.
+El Sprint 2 desarrolla la agenda del estudiante, la creación y asignación de
+actividades, el seguimiento del tutor y la configuración visual en ramas de
+revisión. El estado de cada función depende de la rama que se esté probando.
+
+La Propuesta Técnica y el Manual de Coordinación se mantienen en la entrega
+académica del equipo.
 
 ## Arquitectura
 
-- **Next.js** (App Router) para la aplicación web, con una única base de
+- **Next.js 16 y React 19** (App Router) para la aplicación web, con una única base de
   código para la vista del estudiante y el panel de tutores/administración.
 - **Convex** como servidor y base de datos: el esquema y las funciones viven
   en `convex/`, se escriben en TypeScript y se despliegan con el mismo
@@ -49,9 +49,19 @@ Propuesta Técnica (apartado 4.f):
 | `estadosEmocionales` | Registro emocional diario por estudiante |
 | `configuracionesVisuales` | Paleta, tamaño de letra y apoyo visual por estudiante |
 
-Las funciones de negocio (crear/asignar actividades, comprobar
-solapamientos, etc. — RF2.x) son alcance de la iteración 2 y todavía no
-están implementadas.
+La gestión administrativa de clases (RF7.1–RF7.3) requiere pantallas y
+operaciones de creación, matrícula y asignación de tutores. Las tablas
+anteriores son la base de datos para esas funciones.
+
+### Directorios
+
+| Ruta | Contenido |
+| --- | --- |
+| `src/app/` | Rutas, layouts y estilos globales de Next.js |
+| `src/components/` | Componentes compartidos y proveedor de Convex |
+| `convex/` | Esquema, autenticación y funciones de servidor |
+| `convex/_generated/` | Tipos y referencias de API generados por Convex |
+| `.github/workflows/` | Automatización del repositorio |
 
 ## Instalación y configuración
 
@@ -59,13 +69,17 @@ Requiere Node.js y una cuenta de Convex con acceso al team `guiame-team`
 (pedirle acceso a quien administre el proyecto).
 
 ```sh
-npm install
+npm ci
 npx convex dev --configure existing --team guiame-team --project guiame
 ```
 
 El segundo comando enlaza tu CLI al proyecto `guiame` del team
 `guiame-team` y genera `.env.local` (no se sube al repositorio) con las
-variables de conexión a tu propio deployment de desarrollo.
+variables de conexión a tu propio deployment de desarrollo. Comprueba
+`CONVEX_DEPLOYMENT` para la CLI y `NEXT_PUBLIC_CONVEX_URL` para el cliente
+web. Convex proporciona `CONVEX_SITE_URL`, que se usa como emisor de Convex
+Auth. Los secretos de autenticación se configuran en el deployment. Consulta
+a quien administra el proyecto para habilitar el proveedor en un entorno nuevo.
 
 ## Modo de ejecución
 
@@ -79,7 +93,9 @@ Arranca en paralelo `convex dev` (sincroniza el esquema y las funciones) y
 Otros comandos útiles:
 
 ```sh
+npm run typecheck   # tipos de Convex y Next.js
 npm run lint        # typecheck + eslint
+git diff --check    # espacios sobrantes y marcadores de conflicto
 npm run build       # build de producción de Next.js
 npx convex dashboard # abre el dashboard de Convex
 ```
@@ -94,9 +110,6 @@ npx convex run accounts:createTutor \
   '{"email":"usuario_o_email","password":"...","nombre":"...","apellidos":"..."}'
 ```
 
-Añadir `--prod` apunta a producción en vez de a tu deployment de desarrollo
-personal.
-
 ## Despliegue
 
 - **Vercel**: cada push a `main` dispara un build de producción. El comando
@@ -107,7 +120,10 @@ personal.
   automáticamente el alias **https://guiame-dgp.vercel.app** al deploy que
   acaba de quedar listo.
 
-El Manual de Coordinación (apartado de Control de versiones) fija como
-política integrar los cambios mediante Pull Request revisado en vez de
-push directo a `main`; todavía no hay una regla de protección de rama
-configurada en GitHub que lo exija.
+## Ramas y revisión
+
+Crea una rama por tarea con su identificador, por ejemplo `GM-15-listar-estudiantes`.
+El Pull Request explica los cambios, las pruebas y sus dependencias. Si depende
+de un PR abierto, usa la rama de ese PR como base hasta que se integre. Solicita
+revisión a Pablo y, para los cambios de backend, a Suliman. La integración en
+`main` se realiza desde GitHub después de la revisión.
