@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navigation = [
-  { href: "/estudiante/hoy", label: "Hoy", icon: "sun" },
+  { href: "/hoy", label: "Hoy", icon: "sun" },
   { href: "/estudiante/semana", label: "Mi semana", icon: "calendar" },
   {
     href: "/estudiante/animo",
@@ -66,11 +66,11 @@ export default function StudentSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-full shrink-0 bg-[#f7f3eb] p-4 sm:min-h-screen sm:w-56 sm:border-r sm:border-[#e2ddd2] sm:p-5">
+    <aside className="flex h-full w-[198px] shrink-0 flex-col bg-[#eee8dc] px-3 py-5">
       <Link
         aria-label="GuiaMe, ir a Hoy"
-        className="mb-4 flex min-h-12 items-center gap-3 px-2 sm:mb-8"
-        href="/estudiante/hoy"
+        className="mb-7 flex min-h-12 items-center justify-center gap-3 px-2"
+        href="/hoy"
       >
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#20615b] text-white">
           <Icon name="calendarCheck" />
@@ -81,22 +81,24 @@ export default function StudentSidebar() {
       </Link>
 
       <nav aria-label="Navegación del estudiante">
-        <ul className="flex gap-2 overflow-x-auto sm:flex-col">
+        <ul className="flex flex-col gap-2">
           {navigation.map(({ href, label, icon }) => {
             const active = pathname === href;
 
             return (
-              <li className="shrink-0 sm:shrink" key={href}>
+              <li key={href}>
                 <Link
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-14 items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+                  className={`flex min-h-[92px] flex-col items-center justify-center gap-2 rounded-2xl border-l-4 px-2 py-3 text-center text-base font-bold leading-tight transition-colors ${
                     active
-                      ? "bg-[#20615b] text-white"
-                      : "text-[#343b38] hover:bg-[#e9e4da]"
+                      ? "border-[#f2b640] bg-[#20615b] text-white"
+                      : "border-transparent text-[#343b38] hover:bg-[#e9e4da]"
                   }`}
                   href={href}
                 >
-                  <Icon name={icon} />
+                  <span className="[&>svg]:h-8 [&>svg]:w-8">
+                    <Icon name={icon} />
+                  </span>
                   <span>{label}</span>
                 </Link>
               </li>
@@ -105,7 +107,7 @@ export default function StudentSidebar() {
         </ul>
       </nav>
 
-      <div className="mt-8 hidden rounded-2xl border border-dashed border-[#b8b2a7] px-4 py-5 text-center text-sm text-[#706e68] sm:block">
+      <div className="mt-auto flex min-h-[72px] items-center justify-center rounded-2xl border-2 border-dashed border-[#b8b2a7] px-3 text-center text-sm text-[#706e68]">
         Logo del centro
       </div>
     </aside>
