@@ -84,8 +84,13 @@ export async function requireVeAlEstudianteOrAdmin(
     .query("supervisiones")
     .withIndex("by_tutor", (q) => q.eq("tutorId", current.tutor._id))
     .collect();
-  const clasesSupervisadas = new Set(supervisiones.map((s) => s.claseId));
-  if (matriculas.some((m) => clasesSupervisadas.has(m.claseId))) {
+  const cursosPorClase = new Map<Id<"clases">, Set<string>>();
+  for (const supervision of supervisiones) {
+    const cursos = cursosPorClase.get(supervision.claseId) ?? new Set<string>();
+    cursos.add(supervision.anioCursoAcademico);
+    cursosPorClase.set(supervision.claseId, cursos);
+  }
+  if (matriculas.some((m) => cursosPorClase.get(m.claseId)?.has(m.anioCursoAcademico))) {
     return current.tutor;
   }
 

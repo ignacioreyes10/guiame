@@ -320,6 +320,7 @@ export const agendaDeEstudiante = query({
     estado: v.union(v.literal("hecha"), v.literal("en_curso"), v.literal("pendiente")),
     inicioReal: v.optional(v.string()),
     finReal: v.optional(v.string()),
+    duracionEstudiante: v.optional(v.number()),
   })),
   handler: async (ctx, args) => {
     const tutor = await requireVeAlEstudianteOrAdmin(ctx, args.estudianteId);
@@ -362,6 +363,7 @@ export const agendaDeEstudiante = query({
           : actividad.hInicioReal !== undefined ? "en_curso" as const : "pendiente" as const,
         inicioReal: actividad.hInicioReal === undefined ? undefined : horaMadrid.format(actividad.hInicioReal),
         finReal: actividad.hFinReal === undefined ? undefined : horaMadrid.format(actividad.hFinReal),
+        duracionEstudiante: actividad.duracionEstudiante,
       });
     }
     return resultado;
