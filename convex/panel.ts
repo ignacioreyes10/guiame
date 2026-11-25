@@ -112,6 +112,7 @@ export const misEstudiantes = query({
       let hechas = 0;
       let total = 0;
       let enCurso: string | null = null;
+      let tocaAhora: string | null = null;
       let siguiente: string | null = null;
       let retraso: { actividad: string; minutos: number } | null = null;
 
@@ -129,7 +130,7 @@ export const misEstudiantes = query({
         } else if (realizacion.fInicioProgramada > ahora) {
           siguiente ??= actividad.titulo;
         } else if (ahora < realizacion.fFinProgramada) {
-          enCurso ??= actividad.titulo;
+          tocaAhora ??= actividad.titulo;
         }
 
         const limite = realizacion.hInicioReal === undefined
@@ -142,8 +143,9 @@ export const misEstudiantes = query({
         }
       }
 
-      const actividadActual = enCurso !== null
-        ? { titulo: enCurso, momento: "ahora" as const }
+      const tituloActual = enCurso ?? tocaAhora;
+      const actividadActual = tituloActual !== null
+        ? { titulo: tituloActual, momento: "ahora" as const }
         : siguiente !== null ? { titulo: siguiente, momento: "siguiente" as const } : null;
 
       resultado.push({
