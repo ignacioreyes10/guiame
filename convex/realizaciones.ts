@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {
   requireSelfEstudiante,
@@ -232,6 +232,8 @@ const entradaAgenda = v.object({
   fInicioProgramada: v.number(),
   fFinProgramada: v.number(),
   duracionEstudiante: v.optional(v.number()),
+  hInicioReal: v.optional(v.number()),
+  hFinReal: v.optional(v.number()),
 });
 
 // RF1.1 / RF1.2: agenda de un estudiante entre dos instantes (día o
@@ -247,37 +249,119 @@ export const listarAgenda = query({
   handler: async (ctx, args) => {
     await requireVerAgendaEstudiante(ctx, args.estudianteId);
 
-    if (!Number.isFinite(args.inicio) || !Number.isFinite(args.fin)) {
-      throw new Error("El rango de fechas no es válido");
+    return await cargarAgenda(ctx, args);
+  },
+});
+
+async function cargarAgenda(
+  ctx: QueryCtx,
+  { estudianteId, inicio, fin }: { estudianteId: Id<"estudiantes">; inicio: number; fin: number },
+) {
+  if (!Number.isSafeInteger(inicio) || !Number.isSafeInteger(fin) ||
+      Math.abs(inicio) >= 8.64e15 || Math.abs(fin) >= 8.64e15 || fin <= inicio) {
+    throw new Error("El rango de fechas no es válido");
+  }
+  const limite = 350;
+  const realizaciones = await ctx.db.query("realizaciones")
+    .withIndex("by_estudiante_and_inicio", q => q.eq("estudianteId", estudianteId)
+      .gte("fInicioProgramada", inicio).lt("fInicioProgramada", fin))
+    .take(limite + 1);
+  if (realizaciones.length > limite) {
+    throw new Error("Hay demasiadas actividades para el rango solicitado");
+  }
+
+  const resultado = [];
+  for (const realizacion of realizaciones) {
+    if (realizacion.cancelada) continue;
+    const actividad = await ctx.db.get("actividades", realizacion.actividadId);
+    if (!actividad || actividad.cancelada) continue;
+    resultado.push({
+      realizacionId: realizacion._id,
+      actividadId: actividad._id,
+      titulo: actividad.titulo,
+      tipoActividad: actividad.tipoActividad,
+      imagenId: actividad.imagenId,
+      fInicioProgramada: realizacion.fInicioProgramada,
+      fFinProgramada: realizacion.fFinProgramada,
+      duracionEstudiante: realizacion.duracionEstudiante,
+      hInicioReal: realizacion.hInicioReal,
+      hFinReal: realizacion.hFinReal,
+    });
+  }
+  return resultado;
+}
+
+const horaMadrid = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+const medioPaso = v.union(v.literal("pictograma"), v.literal("video"), v.literal("audio"));
+
+// GM-16: proyección de la agenda común para la pantalla W3 del tutor.
+export const agendaDeEstudiante = query({
+  args: { estudianteId: v.id("estudiantes"), inicio: v.number(), fin: v.number() },
+  returns: v.array(v.object({
+    id: v.id("realizaciones"),
+    actividadId: v.id("actividades"),
+    titulo: v.string(),
+    inicio: v.string(),
+    fin: v.string(),
+    imagen: v.object({
+      _id: v.id("imagenes"),
+      textoAlternativo: v.string(),
+      ubicacionArchivo: v.string(),
+      arasaacId: v.optional(v.string()),
+    }),
+    numPasos: v.number(),
+    medios: v.array(medioPaso),
+    estado: v.union(v.literal("hecha"), v.literal("en_curso"), v.literal("pendiente")),
+    inicioReal: v.optional(v.string()),
+    finReal: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    const tutor = await requireVeAlEstudianteOrAdmin(ctx, args.estudianteId);
+    const cuenta = await ctx.db.get("users", tutor.userId);
+    if (!cuenta || cuenta.estadoCuenta === "inactivo") {
+      throw new Error("No autorizado: cuenta inactiva");
     }
-    if (args.fin <= args.inicio) {
-      throw new Error("El fin del rango debe ser posterior al inicio");
+    const estudiante = await ctx.db.get("estudiantes", args.estudianteId);
+    const usuario = estudiante && await ctx.db.get("users", estudiante.userId);
+    if (!usuario || usuario.estadoCuenta === "inactivo") return [];
+    if (args.fin - args.inicio > 25 * 3600000) {
+      throw new Error("Selecciona un solo día");
     }
 
-    const realizaciones = await ctx.db
-      .query("realizaciones")
-      .withIndex("by_estudiante_and_inicio", (q) =>
-        q
-          .eq("estudianteId", args.estudianteId)
-          .gte("fInicioProgramada", args.inicio)
-          .lt("fInicioProgramada", args.fin),
-      )
-      .collect();
-
+    const agenda = await cargarAgenda(ctx, args);
+    if (agenda.length > 48) throw new Error("El día supera el límite de actividades del panel");
     const resultado = [];
-    for (const realizacion of realizaciones) {
-      if (realizacion.cancelada) continue;
-      const actividad = await ctx.db.get("actividades", realizacion.actividadId);
-      if (actividad === null || actividad.cancelada) continue;
+    for (const actividad of agenda) {
+      const imagen = await ctx.db.get("imagenes", actividad.imagenId);
+      const pasos = await ctx.db.query("pasos")
+        .withIndex("by_actividad_and_orden", q => q.eq("actividadId", actividad.actividadId))
+        .take(101);
+      if (pasos.length > 100) throw new Error("La actividad supera el límite de pasos");
+
       resultado.push({
-        realizacionId: realizacion._id,
-        actividadId: actividad._id,
+        id: actividad.realizacionId,
+        actividadId: actividad.actividadId,
         titulo: actividad.titulo,
-        tipoActividad: actividad.tipoActividad,
-        imagenId: actividad.imagenId,
-        fInicioProgramada: realizacion.fInicioProgramada,
-        fFinProgramada: realizacion.fFinProgramada,
-        duracionEstudiante: realizacion.duracionEstudiante,
+        inicio: horaMadrid.format(actividad.fInicioProgramada),
+        fin: horaMadrid.format(actividad.fFinProgramada),
+        imagen: {
+          _id: actividad.imagenId,
+          textoAlternativo: imagen?.textoAlternativo ?? actividad.titulo,
+          ubicacionArchivo: imagen?.ubicacionArchivo ?? "",
+          arasaacId: imagen?.arasaacId,
+        },
+        numPasos: pasos.length,
+        medios: [...new Set(pasos.map(paso => paso.tipoMedio))],
+        estado: actividad.hFinReal !== undefined ? "hecha" as const
+          : actividad.hInicioReal !== undefined ? "en_curso" as const : "pendiente" as const,
+        inicioReal: actividad.hInicioReal === undefined ? undefined : horaMadrid.format(actividad.hInicioReal),
+        finReal: actividad.hFinReal === undefined ? undefined : horaMadrid.format(actividad.hFinReal),
       });
     }
     return resultado;
