@@ -6,13 +6,18 @@ de Proyectos, Universidad de Granada, curso 2026-2027.
 
 ## Estado actual
 
-La rama principal contiene el acceso con Convex Auth y el esquema actualizado.
-El Sprint 2 desarrolla la agenda del estudiante, la creación y asignación de
-actividades, el seguimiento del tutor y la configuración visual en ramas de
-revisión. El estado de cada función depende de la rama que se esté probando.
+La rama principal contiene Convex Auth, el esquema, el seed base y las funciones
+de actividades, asignación, agenda y seguimiento. El panel profesional está
+presente y sus pantallas aún incluyen datos de prueba. Las consultas del panel
+(GM-15 y GM-16), la conexión de las pantallas, los datos ampliados (GM-14) y
+Hoy del estudiante se revisan por separado. La configuración visual de GM-10
+está en la rama de permisos. Verifica qué ramas incluye cada entorno antes
+de ensayar el recorrido completo.
 
 La Propuesta Técnica y el Manual de Coordinación se mantienen en la entrega
-académica del equipo.
+académica del equipo. El
+[anexo de correcciones](docs/correcciones-propuesta-tecnica-sprint-2.md)
+contiene los textos propuestos para la siguiente versión de la Propuesta Técnica.
 
 ## Arquitectura
 
@@ -65,8 +70,8 @@ anteriores son la base de datos para esas funciones.
 
 ## Instalación y configuración
 
-Requiere Node.js y una cuenta de Convex con acceso al team `guiame-team`
-(pedirle acceso a quien administre el proyecto).
+Usa Node.js 24 y npm. Para configurar un deployment de desarrollo del equipo
+necesitas acceso al team `guiame-team`.
 
 ```sh
 npm ci
@@ -78,8 +83,10 @@ El segundo comando enlaza tu CLI al proyecto `guiame` del team
 variables de conexión a tu propio deployment de desarrollo. Comprueba
 `CONVEX_DEPLOYMENT` para la CLI y `NEXT_PUBLIC_CONVEX_URL` para el cliente
 web. Convex proporciona `CONVEX_SITE_URL`, que se usa como emisor de Convex
-Auth. Los secretos de autenticación se configuran en el deployment. Consulta
-a quien administra el proyecto para habilitar el proveedor en un entorno nuevo.
+Auth. Configura Convex Auth en el deployment de desarrollo. Debe tener `SITE_URL`
+con el origen de la web y el par `JWT_PRIVATE_KEY` / `JWKS`. La clave privada
+se guarda únicamente en Convex. Para un entorno local, usa
+`http://localhost:3000` como `SITE_URL`. Conserva `.env.local` fuera de Git.
 
 ## Modo de ejecución
 
@@ -110,6 +117,35 @@ npx convex run accounts:createTutor \
   '{"email":"usuario_o_email","password":"...","nombre":"...","apellidos":"..."}'
 ```
 
+### Datos de demostración
+
+En un deployment de desarrollo vacío, ejecuta:
+
+```sh
+npx convex run seed:seedDemoData
+```
+
+El seed interno de la base crea una tutora, alumnado ficticio y actividades.
+Si estás probando GM-14, configura antes `GUIAME_DEMO_PASSWORD` en Convex
+con al menos 12 caracteres. Usa esa contraseña con
+`marta.ruiz@centro-demo.es` o con el usuario de uno de los seis alumnos
+(`lucia`, `daniel`, `aitana`, `hugo`, `sara`, `mateo`). Las 25 sesiones
+de GM-14 están fechadas del 23 al 27 de noviembre de 2026. Para comprobar
+W2 y W3 utiliza una rama con las consultas y la interfaz conectadas.
+
+Si el checkout incluye `tests/panel.sh`, ejecútalo con `bash tests/panel.sh`.
+La prueba del seed de GM-14 se empaqueta y ejecuta así:
+
+```sh
+bundle="$(mktemp --suffix=.cjs)"
+./node_modules/.bin/esbuild tests/seed.test.mjs --bundle --platform=node --outfile="$bundle"
+node "$bundle"
+rm -- "$bundle"
+```
+
+Estas pruebas ejercitan los handlers con una base en memoria. Para verificar
+sesión, escritura y reactividad, usa un deployment de desarrollo aparte.
+
 ## Despliegue
 
 - **Vercel**: cada push a `main` dispara un build de producción. El comando
@@ -127,3 +163,7 @@ El Pull Request explica los cambios, las pruebas y sus dependencias. Si depende
 de un PR abierto, usa la rama de ese PR como base hasta que se integre. Solicita
 revisión a Pablo y, para los cambios de backend, a Suliman. La integración en
 `main` se realiza desde GitHub después de la revisión.
+
+Las bases de los PR dependen del código que consumen. GM-14 se apila sobre
+`GM-05-seed-demo`, GM-15 sobre `GM-04-permisos` y GM-16 sobre
+`actividades-agenda-ht5`. GM-17 y GM-18 se revisan contra `main`.
