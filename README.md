@@ -176,6 +176,17 @@ sus ramas deben conservarse. Una futura recuperación de la agenda del
 tutor exige revisar las funciones que ya están en `main` y coordinar la
 integración con el equipo.
 
-GM-17 y GM-18 se revisan contra `main`. GM-49 separa el modelo (PR #24)
-del flujo del alumno (PR #25), que depende de Hoy (PR #16). La configuración
-visual y la redirección por rol llegaron a `main` mediante el PR #23.
+GM-17 y GM-18 se revisan contra `main`. Pablo condicionó la aprobación
+anterior de GM-17 a la integración del PR #18, que conecta el panel
+profesional. La configuración visual y la redirección por rol llegaron a
+`main` mediante el PR #23.
+
+Hoy parte del PR #16. Daniele es responsable de GM-29, la conexión con
+`realizaciones.miAgenda`, `empezar` y `terminar`. La propuesta local
+`GM-29-conexion-convex-hoy` espera coordinación con él. Se comprueba con
+`bash tests/agenda-hoy.sh` en ese checkout.
+
+GM-49 queda para después de la demo. El esquema está congelado y Suliman
+es responsable de los cambios estructurales. Pablo pidió dejar el modelo
+(PR #24) en borrador. El PR #25 conserva la creación autorizada y el
+formulario para completar su montaje cuando se aprueben el modelo y GM-29.
