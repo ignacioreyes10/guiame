@@ -1,17 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import Image from "next/image";
+import { api } from "convex/_generated/api";
+import type { Id } from "convex/_generated/dataModel";
+import { fechaLarga, sumarDias } from "@/components/panel/fechas";
+import NuevaTarea from "./NuevaTarea";
+import { horaEnMadrid, rangoDiaMadrid, urlPictograma } from "./horario";
 import CelebrationOverlay from "@/components/estudiante/CelebrationOverlay";
 
 type ActivityStatus = "pending" | "in_progress" | "completed";
 type Period = "morning" | "afternoon";
 
 type Activity = {
-  id: string;
+  id: Id<"realizaciones">;
   startTime: string;
   title: string;
   completionText: string;
-  pictogram: string;
+  pictogram?: string;
   status: ActivityStatus;
 };
 
@@ -20,71 +27,38 @@ type Celebration = {
   next: Activity | null;
 };
 
-const INITIAL_ACTIVITIES: Activity[] = [
-  {
-    id: "entrar-clase",
-    startTime: "09:00",
-    title: "Entrar a clase",
-    completionText: "de entrar a clase",
-    pictogram: "📋",
-    status: "pending",
-  },
-  {
-    id: "descanso",
-    startTime: "11:00",
-    title: "Descanso",
-    completionText: "el descanso",
-    pictogram: "🛋️",
-    status: "pending",
-  },
-  {
-    id: "taller-cocina",
-    startTime: "11:30",
-    title: "Taller de cocina",
-    completionText: "el taller de cocina",
-    pictogram: "🍲",
-    status: "pending",
-  },
-  {
-    id: "comida",
-    startTime: "14:30",
-    title: "Comida",
-    completionText: "la comida",
-    pictogram: "🍽️",
-    status: "pending",
-  },
-  {
-    id: "merienda",
-    startTime: "16:00",
-    title: "Merienda",
-    completionText: "la merienda",
-    pictogram: "🍎",
-    status: "pending",
-  },
-  {
-    id: "recoger-aula",
-    startTime: "17:00",
-    title: "Recoger el aula",
-    completionText: "de recoger el aula",
-    pictogram: "🧹",
-    status: "pending",
-  },
-];
-
 function areMorningActivitiesComplete(activities: Activity[]) {
   const morningActivities = activities.filter(
     (activity) => activity.startTime < "14:00",
   );
   return (
-    morningActivities.length > 0 &&
     morningActivities.every((activity) => activity.status === "completed")
   );
 }
 
-export default function AgendaHoy() {
-  const [activities, setActivities] = useState(INITIAL_ACTIVITIES);
+export default function AgendaHoy({ fechaInicial }: { fechaInicial: string }) {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const [fecha, setFecha] = useState(fechaInicial);
+  const rango = rangoDiaMadrid(fecha);
+  const agenda = useQuery(api.realizaciones.miAgenda, isAuthenticated ? rango : "skip");
+  const configuracion = useQuery(api.configuracionesVisuales.miConfiguracion, isAuthenticated ? {} : "skip");
+  const empezar = useMutation(api.realizaciones.empezar);
+  const terminar = useMutation(api.realizaciones.terminar);
   const [period, setPeriod] = useState<Period>("morning");
   const [celebration, setCelebration] = useState<Celebration | null>(null);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
+  const activities: Activity[] = (agenda ?? []).map(entrada => ({
+    id: entrada.realizacionId,
+    startTime: horaEnMadrid(entrada.fInicioProgramada),
+    title: entrada.titulo,
+    completionText: entrada.titulo,
+    pictogram: configuracion?.mostrarPictograma !== false && entrada.arasaacId && /^\d+$/.test(entrada.arasaacId) ? urlPictograma(entrada.arasaacId) : undefined,
+    status: entrada.hFinReal !== undefined ? "completed"
+      : entrada.hInicioReal !== undefined ? "in_progress" : "pending",
+  }));
   const morningActivitiesComplete =
     areMorningActivitiesComplete(activities);
   const orderedActivities = [...activities].sort((a, b) =>
@@ -102,70 +76,61 @@ export default function AgendaHoy() {
       : activity.startTime >= "14:00",
   );
 
-  function startActivity(id: string) {
-    setActivities((current) => {
-      const currentActivity = current.find(
-        (activity) => activity.status === "in_progress",
-      );
-      const nextActivity = [...current]
-        .sort((a, b) => a.startTime.localeCompare(b.startTime))
-        .find((activity) => activity.status === "pending");
-
-      if (
-        currentActivity ||
-        nextActivity?.id !== id ||
-        (nextActivity.startTime >= "14:00" &&
-          !areMorningActivitiesComplete(current))
-      ) {
-        return current;
+  async function avanzar(actividad: Activity, accion: "empezar" | "terminar") {
+    if (ocupado) return;
+    setOcupado(true);
+    setError("");
+    try {
+      if (accion === "empezar") {
+        await empezar({ realizacionId: actividad.id });
+      } else {
+        await terminar({ realizacionId: actividad.id });
+        setCelebration({
+          completionText: actividad.completionText,
+          next: orderedActivities.find(candidata => candidata.status === "pending") ?? null,
+        });
       }
-
-      return current.map((activity) =>
-        activity.id === id ? { ...activity, status: "in_progress" } : activity,
-      );
-    });
+    } catch {
+      setError("No se pudo actualizar la actividad. Inténtalo de nuevo.");
+    } finally {
+      setOcupado(false);
+    }
   }
 
-  function completeActivity(id: string) {
-    const activityIndex = orderedActivities.findIndex(
-      (activity) => activity.id === id,
-    );
-    const activity = orderedActivities[activityIndex];
-    const nextUncompletedActivity = orderedActivities.find(
-      (candidate) => candidate.status !== "completed",
-    );
+  if (isLoading) return <p role="status">Cargando agenda…</p>;
+  if (!isAuthenticated) return <p>Inicia sesión para ver tu agenda.</p>;
 
-    if (
-      !activity ||
-      nextUncompletedActivity?.id !== id ||
-      activity.status !== "in_progress" ||
-      (activity.startTime >= "14:00" && !morningActivitiesComplete)
-    ) {
-      return;
-    }
-
-    const nextActivity =
-      orderedActivities
-        .slice(activityIndex + 1)
-        .find((candidate) => candidate.status === "pending") ?? null;
-
-    setActivities((current) =>
-      current.map((candidate) =>
-        candidate.id === id
-          ? { ...candidate, status: "completed" }
-          : candidate,
-      ),
+  if (mostrarFormulario && configuracion?.permiteCrearTareas) {
+    return (
+      <div className="overflow-y-auto">
+        <NuevaTarea fechaInicial={fecha} onCancelar={() => setMostrarFormulario(false)}
+          onCreada={(dia, hora) => {
+            setFecha(dia);
+            setPeriod(hora < "14:00" ? "morning" : "afternoon");
+            setMostrarFormulario(false);
+            setMensaje("Tarea guardada en tu agenda.");
+          }} />
+      </div>
     );
-    setCelebration({
-      completionText: activity.completionText,
-      next: nextActivity
-        ? nextActivity
-        : null,
-    });
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 pb-2" aria-label="Elegir día de la agenda">
+        <button type="button" aria-label="Día anterior" className="min-h-11 min-w-11 rounded-lg border px-3"
+          onClick={() => setFecha(dia => sumarDias(dia, -1))}>←</button>
+        <p aria-live="polite" className="font-bold">{fechaLarga(fecha)}</p>
+        <button type="button" aria-label="Día siguiente" className="min-h-11 min-w-11 rounded-lg border px-3"
+          onClick={() => setFecha(dia => sumarDias(dia, 1))}>→</button>
+        {configuracion?.permiteCrearTareas && (
+          <button type="button" className="ml-auto min-h-12 rounded-xl bg-[#20615b] px-4 font-bold text-white"
+            onClick={() => { setMensaje(""); setMostrarFormulario(true); }}>Nueva tarea</button>
+        )}
+      </div>
+      {mensaje && <p role="status" className="text-[#20615b]">{mensaje}</p>}
+      {error && <p role="alert" className="text-[#9a3412]">{error}</p>}
+      {agenda === undefined && <p role="status">Cargando actividades…</p>}
+      {agenda !== undefined && visibleActivities.length === 0 && <p>No hay actividades en esta franja.</p>}
       {period === "afternoon" && !morningActivitiesComplete && (
         <p
           className="mb-2 shrink-0 rounded-xl bg-[#f2b640] px-4 py-2 text-center font-bold text-[#242a27]"
@@ -181,7 +146,7 @@ export default function AgendaHoy() {
             ? "Actividades de la mañana"
             : "Actividades de la tarde"
         }
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-2"
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pt-2"
       >
         {visibleActivities.map((activity) => {
           const isCurrent = activity.status === "in_progress";
@@ -208,7 +173,9 @@ export default function AgendaHoy() {
                   isDone ? "bg-[#f1eee7] grayscale" : "bg-[#f4f0e7]"
                 }`}
               >
-                {activity.pictogram}
+                {activity.pictogram
+                  ? <Image src={activity.pictogram} alt="" width={48} height={48} unoptimized />
+                  : "📋"}
               </span>
               <div className="min-w-0 flex-1">
                 <p
@@ -249,8 +216,8 @@ export default function AgendaHoy() {
                     isAfternoonLocked ? "afternoon-locked-message" : undefined
                   }
                   className="flex min-h-14 shrink-0 items-center gap-3 rounded-xl bg-[#f2b640] px-5 text-lg font-bold text-[#242a27] transition hover:bg-[#e6a923] focus:outline-none focus:ring-4 focus:ring-[#f4dfa8] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isAfternoonLocked}
-                  onClick={() => completeActivity(activity.id)}
+                  disabled={isAfternoonLocked || ocupado}
+                  onClick={() => void avanzar(activity, "terminar")}
                   type="button"
                 >
                   Termino <span aria-hidden="true">✓</span>
@@ -263,8 +230,8 @@ export default function AgendaHoy() {
                     isAfternoonLocked ? "afternoon-locked-message" : undefined
                   }
                   className="flex min-h-14 shrink-0 items-center gap-3 rounded-xl bg-[#20615b] px-5 text-lg font-bold text-white transition hover:bg-[#184d48] focus:outline-none focus:ring-4 focus:ring-[#c8dedb] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isAfternoonLocked}
-                  onClick={() => startActivity(activity.id)}
+                  disabled={isAfternoonLocked || ocupado}
+                  onClick={() => void avanzar(activity, "empezar")}
                   type="button"
                 >
                   Empiezo <span aria-hidden="true">→</span>
@@ -322,7 +289,7 @@ export default function AgendaHoy() {
             setPeriod(
               celebration.next.startTime < "14:00" ? "morning" : "afternoon",
             );
-            startActivity(celebration.next.id);
+            void avanzar(celebration.next, "empezar");
             setCelebration(null);
           }}
           onDismiss={() => setCelebration(null)}
