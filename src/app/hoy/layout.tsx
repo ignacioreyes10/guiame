@@ -1,0 +1,33 @@
+import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
+import { fetchQuery } from "convex/nextjs";
+import { redirect } from "next/navigation";
+import { api } from "convex/_generated/api";
+import StudentSidebar from "@/components/estudiante/StudentSidebar";
+
+export default async function HoyLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const token = await convexAuthNextjsToken();
+  const isDevelopmentPreview =
+    process.env.NODE_ENV === "development" &&
+    process.env.GUIAME_HOY_PREVIEW === "true";
+  if (!token && !isDevelopmentPreview) {
+    redirect("/login");
+  }
+
+  if (token) {
+    const user = await fetchQuery(api.users.currentUser, {}, { token });
+    if (!user?.roles?.includes("estudiante")) {
+      redirect("/login");
+    }
+  }
+
+  return (
+    <div className="flex h-dvh w-full overflow-hidden bg-[#fbfaf7]">
+      <StudentSidebar />
+      <div className="h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
