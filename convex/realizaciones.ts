@@ -18,7 +18,7 @@ import {
 // horario, no se comparará consigo mismo", así que la propia realización
 // que se está reprogramando se descarta del conjunto antes de comparar.
 // asignar nunca lo pasa, porque siempre crea realizaciones nuevas.
-async function cargarHorarioActivoDelEstudiante(
+export async function cargarHorarioActivoDelEstudiante(
   ctx: MutationCtx,
   estudianteId: Id<"estudiantes">,
   excluirRealizacionId?: Id<"realizaciones">,
@@ -49,7 +49,7 @@ async function cargarHorarioActivoDelEstudiante(
   return horario;
 }
 
-function seSolapan(
+export function seSolapan(
   a: { fInicioProgramada: number; fFinProgramada: number },
   b: { fInicioProgramada: number; fFinProgramada: number },
 ): boolean {
@@ -342,6 +342,7 @@ const entradaAgenda = v.object({
     v.literal("del_estudiante"),
   ),
   imagenId: v.id("imagenes"),
+  arasaacId: v.optional(v.string()),
   fInicioProgramada: v.number(),
   fFinProgramada: v.number(),
   duracionEstudiante: v.optional(v.number()),
@@ -358,6 +359,7 @@ async function obtenerAgenda(
   estudianteId: Id<"estudiantes">,
   inicio: number,
   fin: number,
+  incluirPictograma = false,
 ) {
   if (!Number.isFinite(inicio) || !Number.isFinite(fin)) {
     throw new Error("El rango de fechas no es válido");
@@ -381,12 +383,14 @@ async function obtenerAgenda(
     if (realizacion.cancelada) continue;
     const actividad = await ctx.db.get("actividades", realizacion.actividadId);
     if (actividad === null || actividad.cancelada) continue;
+    const imagen = incluirPictograma ? await ctx.db.get("imagenes", actividad.imagenId) : null;
     resultado.push({
       realizacionId: realizacion._id,
       actividadId: actividad._id,
       titulo: actividad.titulo,
       tipoActividad: actividad.tipoActividad,
       imagenId: actividad.imagenId,
+      arasaacId: imagen?.arasaacId,
       fInicioProgramada: realizacion.fInicioProgramada,
       fFinProgramada: realizacion.fFinProgramada,
       duracionEstudiante: realizacion.duracionEstudiante,
@@ -422,7 +426,7 @@ export const miAgenda = query({
   returns: v.array(entradaAgenda),
   handler: async (ctx, args) => {
     const estudiante = await requireSelfEstudiante(ctx);
-    return await obtenerAgenda(ctx, estudiante._id, args.inicio, args.fin);
+    return await obtenerAgenda(ctx, estudiante._id, args.inicio, args.fin, true);
   },
 });
 
