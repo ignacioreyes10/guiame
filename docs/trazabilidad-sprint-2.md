@@ -5,12 +5,13 @@ la Iteración 1, §4.c y §5.d, y plan de Yusuf del 22 de noviembre. El estado
 indica el alcance funcional completo. Comprobar tipos o ejecutar un handler
 con datos simulados aporta evidencia parcial. La aceptación del centro
 queda para la revisión del sprint. Los PR #13 y #15 aportan backend a
-`main`. El PR #14 se integró en `GM-04-permisos`. Los PR propios de
-GM-14, GM-15, GM-16 y GM-17 siguen en revisión.
+`main`. El PR #23 incorporó a `main` la redirección y configuración del
+#7 y #14. El equipo decidió cerrar sin fusionar #17 y #19 y dejar #20
+como borrador. Esas decisiones de revisión conservan el código en sus ramas.
 
 | Requisito | Historia de usuario | Pantalla | Función backend | Estado | Evidencia |
 | --- | --- | --- | --- | --- | --- |
-| RF1.1 | Alumno consulta su día | Hoy | `realizaciones.miAgenda` | En desarrollo | Backend en main. Hoy se conecta en la rama de GM-49 |
+| RF1.1 | Alumno consulta su día | Hoy | `realizaciones.miAgenda` | En desarrollo | Backend en main. Hoy del #16 y conexión del #25 siguen pendientes de integración |
 | RF1.2 | Alumno consulta su semana | Mi semana | `realizaciones.listarAgenda` | En desarrollo | PR #13 acepta rangos. Falta probar pantalla y permiso |
 | RF1.3 | Alumno sigue los pasos | 3a–3c | `realizaciones.obtenerDetalle` | En desarrollo | PR #13 devuelve pasos |
 | RF2.1 | Tutor crea una actividad | W4a | `actividades.crear` | En desarrollo | Backend en main. W4 conectado en la rama GM-15-16-panel-conectado |
@@ -24,21 +25,21 @@ GM-14, GM-15, GM-16 y GM-17 siguen en revisión.
 | RF3.2 | Alumno pulsa Termino | Hoy | `realizaciones.terminar` | En desarrollo | PR #13 exige inicio y guarda fin. Hoy lo consume en la rama de GM-49. Pendiente prueba real |
 | RF3.3 | Alumno registra cómo se siente ese día | Mi estado de ánimo | Tabla `estadosEmocionales` | En desarrollo | Esquema y catálogo. Falta validar el registro diario |
 | RF3.4 | Tutor consulta la emoción registrada | W3 | Tabla `estadosEmocionales` | En desarrollo | Sin consulta conectada a W3 |
-| RF4.1 | Tutor elige la paleta | W5 / Hoy | `configuracionesVisuales.obtener/actualizar` | En desarrollo | PR #14. Pendiente de comprobar el cambio en la tablet |
-| RF4.2 | Tutor ajusta el tamaño de letra | W5 / Hoy | `configuracionesVisuales.obtener/actualizar` | En desarrollo | PR #14 |
-| RF4.3 | Tutor configura los formatos | W5 / Hoy | `configuracionesVisuales.obtener/actualizar` | En desarrollo | PR #14 guarda cuatro formatos y exige texto o pictograma |
-| RF5.1 | Tutor consulta pendientes y retrasos | W2 / W3 | `panel.misEstudiantes`, `realizaciones.agendaDeEstudiante` | Implementado, pendiente de pruebas | GM-15/16 y `tests/panel.sh` en la rama de integración. Estados y retrasos comprobados con datos en memoria |
-| RF5.2 | Tutor ve completadas y horas reales | W3 | `realizaciones.agendaDeEstudiante` | Implementado, pendiente de pruebas | GM-16 devuelve las horas y permite consultar días anteriores. La integración muestra la duración informada. Pendiente de validación en navegador con datos reales del entorno de desarrollo |
+| RF4.1 | Tutor elige la paleta | W5 / Hoy | `configuracionesVisuales.obtener/actualizar` | En desarrollo | Backend integrado mediante #23. Pendiente de comprobar el cambio en la tablet |
+| RF4.2 | Tutor ajusta el tamaño de letra | W5 / Hoy | `configuracionesVisuales.obtener/actualizar` | En desarrollo | Backend integrado mediante #23. Pendiente de comprobar la pantalla |
+| RF4.3 | Tutor configura los formatos | W5 / Hoy | `configuracionesVisuales.obtener/actualizar` | En desarrollo | El backend integrado mediante #23 guarda cuatro formatos y exige texto o pictograma |
+| RF5.1 | Tutor consulta pendientes y retrasos | W2 / W3 | `panel.misEstudiantes`, `realizaciones.agendaDeEstudiante` | Implementado, pendiente de pruebas | `tests/panel.sh` en la rama de integración. Estados y retrasos comprobados en memoria. Ramas de #17 y #19 conservadas tras la decisión de cierre |
+| RF5.2 | Tutor ve completadas y horas reales | W3 | `realizaciones.agendaDeEstudiante` | Implementado, pendiente de pruebas | La rama de GM-16 conserva horas, duración y navegación por fechas. El equipo pidió cerrar #19 y revisar las dependencias si se retoma |
 | RF5.3 | Tutor califica una realización | W3 | Campo de calificación en `realizaciones` | No iniciado | Esquema |
 | RF6.1 | Usuario inicia sesión | Login | Convex Auth `signIn` | Implementado, pendiente de pruebas | `src/app/login/page.tsx`. Sin prueba propia de sesión |
 | RF6.2 | Usuario accede solo a datos permitidos | Panel / Hoy | `convex/lib/auth.ts` | Implementado, pendiente de pruebas | PR #6 y #13. Pendiente prueba de sesiones reales |
-| RF6.3 | Tutor consulta alumnos asignados | W2 | `panel.misEstudiantes` | Implementado, pendiente de pruebas | GM-15 y `tests/panel.sh`: tutor, alumno, deduplicación, matrícula y vínculo. Pendiente sesión de Marta en desarrollo |
+| RF6.3 | Tutor consulta alumnos asignados | W2 | `panel.misEstudiantes` | Implementado, pendiente de pruebas | GM-15 quedó en su rama tras cerrar #17. `tests/panel.sh` cubre tutor, alumno, deduplicación, matrícula y vínculo con datos en memoria |
 | RF6.4 | Usuario cierra sesión | Panel / Hoy | Convex Auth `signOut` | Implementado, pendiente de pruebas | `src/components/SignOutButton.tsx`. Sin prueba propia de sesión |
 | RF6.5 | Administrador gestiona cuentas | Administración | `accounts.createTutor` (CLI) | En desarrollo | Alta interna del tutor. Falta gestión administrativa completa |
 | RF7.1 | Administrador crea una clase | Administración | Tabla `clases` | No iniciado | Esquema y seed. Sin flujo administrativo |
 | RF7.2 | Administrador matricula al alumno | Administración | Tabla `matriculas` | No iniciado | Esquema y seed. Sin flujo administrativo |
 | RF7.3 | Administrador asigna tutor a una clase | Administración | Tabla `supervisiones` | No iniciado | Esquema y seed. Sin flujo administrativo |
-| GM-49, sin RF asignado | Alumno autorizado crea una tarea propia | Hoy | `tareasAlumno.crear`, `configuracionesVisuales.miConfiguracion` | Implementado, pendiente de aprobación y prueba real | 6 pruebas locales con datos en memoria. La rama de modelo propone `origen: "propia"` y espera revisión del equipo |
+| GM-49, sin RF asignado | Alumno autorizado crea una tarea propia | Hoy | `tareasAlumno.crear`, `configuracionesVisuales.miConfiguracion` | Implementado, pendiente de aprobación y prueba real | 7 pruebas locales con datos en memoria. Modelo en #24 y flujo en #25. Pendiente revisión y validación en Convex real |
 
 ## Cambios propuestos para la siguiente Propuesta Técnica
 
