@@ -3,6 +3,7 @@ import { query, mutation, type QueryCtx, type MutationCtx } from "./_generated/s
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   getCurrentUser,
+  requireSelfEstudiante,
   requireVeAlEstudianteOrAdmin,
 } from "./lib/auth";
 
@@ -102,6 +103,26 @@ export const obtener = query({
     const doc = await ctx.db
       .query("configuracionesVisuales")
       .withIndex("by_estudiante", (q) => q.eq("estudianteId", args.estudianteId))
+      .unique();
+
+    if (doc === null) return null;
+    return aCampos(doc);
+  },
+});
+
+// Igual que obtener, pero para que el propio estudiante consulte su
+// configuración sin tener que conocer (ni poder falsear) su estudianteId:
+// se deriva de la sesión con requireSelfEstudiante. Pedida por Pablo en el
+// #13: sin esto, el lado del alumno no tiene cómo pedir su configuración.
+export const miConfiguracion = query({
+  args: {},
+  returns: v.union(v.null(), configuracionVisualValidator),
+  handler: async (ctx) => {
+    const estudiante = await requireSelfEstudiante(ctx);
+
+    const doc = await ctx.db
+      .query("configuracionesVisuales")
+      .withIndex("by_estudiante", (q) => q.eq("estudianteId", estudiante._id))
       .unique();
 
     if (doc === null) return null;
