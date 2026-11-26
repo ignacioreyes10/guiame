@@ -11,7 +11,7 @@ como borrador. Esas decisiones de revisión conservan el código en sus ramas.
 
 | Requisito | Historia de usuario | Pantalla | Función backend | Estado | Evidencia |
 | --- | --- | --- | --- | --- | --- |
-| RF1.1 | Alumno consulta su día | Hoy | `realizaciones.miAgenda` | En desarrollo | Backend en main. Hoy del #16 y conexión del #25 siguen pendientes de integración |
+| RF1.1 | Alumno consulta su día | Hoy | `realizaciones.miAgenda` | En desarrollo | Backend en main. Hoy del #16 y la conexión de GM-29 siguen pendientes |
 | RF1.2 | Alumno consulta su semana | Mi semana | `realizaciones.listarAgenda` | En desarrollo | PR #13 acepta rangos. Falta probar pantalla y permiso |
 | RF1.3 | Alumno sigue los pasos | 3a–3c | `realizaciones.obtenerDetalle` | En desarrollo | PR #13 devuelve pasos |
 | RF2.1 | Tutor crea una actividad | W4a | `actividades.crear` | En desarrollo | Backend en main. W4 conectado en la rama GM-15-16-panel-conectado |
@@ -21,8 +21,8 @@ como borrador. Esas decisiones de revisión conservan el código en sus ramas.
 | RF2.5 | Tutor asigna una actividad a alumnos | W4c | `realizaciones.asignar` | En desarrollo | Backend en main. W4 real en GM-15-16-panel-conectado, pendiente de validación |
 | RF2.6 | Tutor recibe aviso de colisión horaria | W4c | `realizaciones.asignar` | En desarrollo | PR #13 valida intervalos. Pendiente de prueba con el asistente real |
 | RF2.7 | Tutor prepara pasos comprensibles | W4b | `actividades.crear` | En desarrollo | PR #13 y pasos en el asistente de prueba |
-| RF3.1 | Alumno pulsa Empiezo | Hoy | `realizaciones.empezar` | En desarrollo | PR #13 guarda la hora. Hoy lo consume en la rama de GM-49. Pendiente prueba real |
-| RF3.2 | Alumno pulsa Termino | Hoy | `realizaciones.terminar` | En desarrollo | PR #13 exige inicio y guarda fin. Hoy lo consume en la rama de GM-49. Pendiente prueba real |
+| RF3.1 | Alumno pulsa Empiezo | Hoy | `realizaciones.empezar` | En desarrollo | PR #13 guarda la hora. Conexión de prueba conservada en GM-49-integracion-hoy. Pendiente GM-29 y prueba real |
+| RF3.2 | Alumno pulsa Termino | Hoy | `realizaciones.terminar` | En desarrollo | PR #13 exige inicio y guarda fin. Conexión de prueba conservada en GM-49-integracion-hoy. Pendiente GM-29 y prueba real |
 | RF3.3 | Alumno registra cómo se siente ese día | Mi estado de ánimo | Tabla `estadosEmocionales` | En desarrollo | Esquema y catálogo. Falta validar el registro diario |
 | RF3.4 | Tutor consulta la emoción registrada | W3 | Tabla `estadosEmocionales` | En desarrollo | Sin consulta conectada a W3 |
 | RF4.1 | Tutor elige la paleta | W5 / Hoy | `configuracionesVisuales.obtener/actualizar` | En desarrollo | Backend integrado mediante #23. Pendiente de comprobar el cambio en la tablet |
@@ -39,7 +39,7 @@ como borrador. Esas decisiones de revisión conservan el código en sus ramas.
 | RF7.1 | Administrador crea una clase | Administración | Tabla `clases` | No iniciado | Esquema y seed. Sin flujo administrativo |
 | RF7.2 | Administrador matricula al alumno | Administración | Tabla `matriculas` | No iniciado | Esquema y seed. Sin flujo administrativo |
 | RF7.3 | Administrador asigna tutor a una clase | Administración | Tabla `supervisiones` | No iniciado | Esquema y seed. Sin flujo administrativo |
-| GM-49, sin RF asignado | Alumno autorizado crea una tarea propia | Hoy | `tareasAlumno.crear`, `configuracionesVisuales.miConfiguracion` | Implementado, pendiente de aprobación y prueba real | 7 pruebas locales con datos en memoria. Modelo en #24 y flujo en #25. Pendiente revisión y validación en Convex real |
+| GM-49, sin RF asignado | Alumno autorizado crea una tarea propia | Hoy | `tareasAlumno.crear`, `configuracionesVisuales.miConfiguracion` | Implementado, pendiente de aprobación y prueba real | 7 pruebas locales con datos en memoria. Modelo en #24; backend y formulario en #25. El montaje del formulario depende de GM-29. Pendiente revisión y prueba real |
 
 ## Cambios propuestos para la siguiente Propuesta Técnica
 
