@@ -6,13 +6,12 @@ de Proyectos, Universidad de Granada, curso 2026-2027.
 
 ## Estado actual
 
-La rama principal contiene Convex Auth, el esquema, el seed base y las funciones
-de actividades, asignación, agenda y seguimiento. El panel profesional está
-presente y sus pantallas aún incluyen datos de prueba. Las consultas del panel
-(GM-15 y GM-16), la conexión de las pantallas, los datos ampliados (GM-14) y
-Hoy del estudiante se revisan por separado. La configuración visual de GM-10
-está en la rama de permisos. Verifica qué ramas incluye cada entorno antes
-de ensayar el recorrido completo.
+La rama principal incluye Convex Auth, la redirección por rol, la configuración
+visual, el esquema, el seed base y las operaciones de agenda y seguimiento.
+El panel profesional incluye pantallas con datos de prueba. Hoy del alumno
+(PR #16), el seed ampliado (PR #20) y las tareas propias (PR #24 y #25)
+se revisan por separado. Comprueba qué ramas incluye el entorno antes de
+ensayar el recorrido completo.
 
 La Propuesta Técnica y el Manual de Coordinación se mantienen en la entrega
 académica del equipo. El
@@ -31,6 +30,7 @@ contiene los textos propuestos para la siguiente versión de la Propuesta Técni
   como un nombre de usuario simple (estudiantes, según el glosario de la
   Propuesta Técnica) — no se valida formato, solo se compara como texto.
 - **Tailwind CSS v4** para los estilos.
+- **Vercel** para la aplicación web y las previews de revisión.
 
 Detalle de las tecnologías y su justificación: Propuesta Técnica, apartado
 5.c.
@@ -143,6 +143,11 @@ node "$bundle"
 rm -- "$bundle"
 ```
 
+En la rama de GM-49, ejecuta `bash tests/tareas-alumno.sh`. Esa rama incluye
+`docs/gm-49-validacion.md` con el procedimiento de validación funcional.
+La configuración visual ya guarda `permiteCrearTareas`. La creación propia
+requiere además el modelo del PR #24 y la mutación y el formulario del #25.
+
 Estas pruebas ejercitan los handlers con una base en memoria. Para verificar
 sesión, escritura y reactividad, usa un deployment de desarrollo aparte.
 
@@ -164,6 +169,13 @@ de un PR abierto, usa la rama de ese PR como base hasta que se integre. Solicita
 revisión a Pablo y, para los cambios de backend, a Suliman. La integración en
 `main` se realiza desde GitHub después de la revisión.
 
-Las bases de los PR dependen del código que consumen. GM-14 se apila sobre
-`GM-05-seed-demo`, GM-15 sobre `GM-04-permisos` y GM-16 sobre
-`actividades-agenda-ht5`. GM-17 y GM-18 se revisan contra `main`.
+Antes de apilar un PR, comprueba si su base sigue activa y qué código llegó
+a `main`. El PR #20 conserva su base histórica y Pablo ha pedido dejarlo
+en borrador. Pablo indicó que #17 y #19 deben cerrarse sin fusionar y que
+sus ramas deben conservarse. Una futura recuperación de la agenda del
+tutor exige revisar las funciones que ya están en `main` y coordinar la
+integración con el equipo.
+
+GM-17 y GM-18 se revisan contra `main`. GM-49 separa el modelo (PR #24)
+del flujo del alumno (PR #25), que depende de Hoy (PR #16). La configuración
+visual y la redirección por rol llegaron a `main` mediante el PR #23.
