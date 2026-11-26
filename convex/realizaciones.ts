@@ -236,37 +236,34 @@ const entradaAgenda = v.object({
   hFinReal: v.optional(v.number()),
 });
 
-// RF1.1 / RF1.2: agenda de un estudiante entre dos instantes (día o
-// semana, según lo que calcule el cliente a partir de la hora local). Ya
-// viene ordenada ascendentemente por el índice usado.
-export const listarAgenda = query({
-  args: {
-    estudianteId: v.id("estudiantes"),
-    inicio: v.number(),
-    fin: v.number(),
-  },
-  returns: v.array(entradaAgenda),
-  handler: async (ctx, args) => {
-    await requireVerAgendaEstudiante(ctx, args.estudianteId);
-
-    return await cargarAgenda(ctx, args);
-  },
-});
-
-async function cargarAgenda(
+// Compartida por listarAgenda y miAgenda: una vez autorizado el acceso,
+// ambas consultan y mapean la agenda igual. hInicioReal/hFinReal van en el
+// resultado para que el cliente sepa si debe mostrar "Empiezo", "En curso"
+// o "Hecho" sin tener que pedir el detalle de cada realización aparte.
+async function obtenerAgenda(
   ctx: QueryCtx,
-  { estudianteId, inicio, fin }: { estudianteId: Id<"estudiantes">; inicio: number; fin: number },
+  estudianteId: Id<"estudiantes">,
+  inicio: number,
+  fin: number,
+  limite?: number,
 ) {
-  if (!Number.isSafeInteger(inicio) || !Number.isSafeInteger(fin) ||
-      Math.abs(inicio) >= 8.64e15 || Math.abs(fin) >= 8.64e15 || fin <= inicio) {
+  if (!Number.isFinite(inicio) || !Number.isFinite(fin)) {
     throw new Error("El rango de fechas no es válido");
   }
-  const limite = 350;
-  const realizaciones = await ctx.db.query("realizaciones")
-    .withIndex("by_estudiante_and_inicio", q => q.eq("estudianteId", estudianteId)
-      .gte("fInicioProgramada", inicio).lt("fInicioProgramada", fin))
-    .take(limite + 1);
-  if (realizaciones.length > limite) {
+  if (fin <= inicio) {
+    throw new Error("El fin del rango debe ser posterior al inicio");
+  }
+
+  const consulta = ctx.db
+    .query("realizaciones")
+    .withIndex("by_estudiante_and_inicio", (q) =>
+      q
+        .eq("estudianteId", estudianteId)
+        .gte("fInicioProgramada", inicio)
+        .lt("fInicioProgramada", fin),
+    );
+  const realizaciones = limite === undefined ? await consulta.collect() : await consulta.take(limite + 1);
+  if (limite !== undefined && realizaciones.length > limite) {
     throw new Error("Hay demasiadas actividades para el rango solicitado");
   }
 
@@ -274,7 +271,7 @@ async function cargarAgenda(
   for (const realizacion of realizaciones) {
     if (realizacion.cancelada) continue;
     const actividad = await ctx.db.get("actividades", realizacion.actividadId);
-    if (!actividad || actividad.cancelada) continue;
+    if (actividad === null || actividad.cancelada) continue;
     resultado.push({
       realizacionId: realizacion._id,
       actividadId: actividad._id,
@@ -290,6 +287,35 @@ async function cargarAgenda(
   }
   return resultado;
 }
+
+// RF1.1 / RF1.2: agenda de un estudiante entre dos instantes (día o
+// semana, según lo que calcule el cliente a partir de la hora local). Ya
+// viene ordenada ascendentemente por el índice usado. Para el propio
+// estudiante, usar miAgenda (no necesita pasar su estudianteId).
+export const listarAgenda = query({
+  args: {
+    estudianteId: v.id("estudiantes"),
+    inicio: v.number(),
+    fin: v.number(),
+  },
+  returns: v.array(entradaAgenda),
+  handler: async (ctx, args) => {
+    await requireVerAgendaEstudiante(ctx, args.estudianteId);
+    return await obtenerAgenda(ctx, args.estudianteId, args.inicio, args.fin);
+  },
+});
+
+// RF1.1 / RF1.2: igual que listarAgenda, pero para que el propio
+// estudiante consulte su agenda sin tener que conocer (ni poder falsear)
+// su estudianteId: se deriva de la sesión con requireSelfEstudiante.
+export const miAgenda = query({
+  args: { inicio: v.number(), fin: v.number() },
+  returns: v.array(entradaAgenda),
+  handler: async (ctx, args) => {
+    const estudiante = await requireSelfEstudiante(ctx);
+    return await obtenerAgenda(ctx, estudiante._id, args.inicio, args.fin);
+  },
+});
 
 const horaMadrid = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/Madrid",
@@ -335,7 +361,7 @@ export const agendaDeEstudiante = query({
       throw new Error("Selecciona un solo día");
     }
 
-    const agenda = await cargarAgenda(ctx, args);
+    const agenda = await obtenerAgenda(ctx, args.estudianteId, args.inicio, args.fin, 350);
     if (agenda.length > 48) throw new Error("El día supera el límite de actividades del panel");
     const resultado = [];
     for (const actividad of agenda) {
